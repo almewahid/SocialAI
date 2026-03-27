@@ -6,6 +6,8 @@ export default function GroupsAnalysis({ groups, onUpdate }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [updating, setUpdating] = useState(null);
+  const [analyzingTimes, setAnalyzingTimes] = useState(false);
+  const [timesResult, setTimesResult] = useState("");
 
   const featured = groups.filter(g => g.activity_level === "high" && g.is_active);
   const average = groups.filter(g => g.activity_level === "medium" && g.is_active);
@@ -28,6 +30,17 @@ export default function GroupsAnalysis({ groups, onUpdate }) {
     await base44.entities.Group.update(group.id, { is_active: false });
     onUpdate();
     setUpdating(null);
+  };
+
+  const analyzeBestTimes = async () => {
+    setAnalyzingTimes(true);
+    const groupsSummary = groups.slice(0,20).map(g => `${g.name} (${g.platform === 'facebook' ? 'FB' : 'WA'}, ${g.category}, أعضاء: ${g.member_count || 'غير محدد'})`).join('\n');
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `أنت خبير تسويق رقمي. بناءً على هذه المجموعات:\n${groupsSummary}\n\nاقترح أفضل أوقات النشر لكل تصنيف (بيع وشراء، خدمات، عقارات، إلخ) مع مراعاة:\n- طبيعة الجمهور العربي\n- أوقات الذروة في السوشيال ميديا\n- الفرق بين فيسبوك وواتساب\n\nأعطِ جدولاً عملياً ومختصراً باللغة العربية.`,
+      model: "gemini_3_flash"
+    });
+    setTimesResult(typeof result === "string" ? result : result?.text || "");
+    setAnalyzingTimes(false);
   };
 
   const markAsActive = async (group) => {
@@ -126,6 +139,29 @@ export default function GroupsAnalysis({ groups, onUpdate }) {
           </div>
         </div>
       )}
+
+      {/* Best Posting Times */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⏰</span>
+            <h3 className="font-bold text-gray-800 text-sm">تحليل أفضل أوقات النشر</h3>
+          </div>
+          <button onClick={analyzeBestTimes} disabled={analyzingTimes}
+            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold disabled:opacity-50">
+            {analyzingTimes ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />يحلل...</> : <>⏰ تحليل الأوقات</>}
+          </button>
+        </div>
+        <div className="p-5">
+          {timesResult ? (
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{timesResult}</p>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-gray-400">اضغط لتحليل أفضل أوقات النشر لكل تصنيف من مجموعاتك</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* AI Analysis */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

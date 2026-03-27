@@ -36,6 +36,8 @@ export default function CreatePost() {
   const [mediaPreview, setMediaPreview] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [aiImagePrompt, setAiImagePrompt] = useState("");
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   useEffect(() => {
     base44.entities.Group.filter({ is_active: true }, "-created_date", 500).then(setGroups);
@@ -52,8 +54,19 @@ export default function CreatePost() {
   };
 
   const clearMedia = () => {
-    setMediaType(null); setMediaUrl(""); setMediaPreview(""); setLinkUrl("");
+    setMediaType(null); setMediaUrl(""); setMediaPreview(""); setLinkUrl(""); setAiImagePrompt("");
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const generateAiImage = async () => {
+    if (!aiImagePrompt.trim()) return;
+    setGeneratingImage(true);
+    const result = await base44.integrations.Core.GenerateImage({ prompt: aiImagePrompt });
+    if (result?.url) {
+      setMediaUrl(result.url);
+      setMediaPreview(result.url);
+    }
+    setGeneratingImage(false);
   };
 
   const generateVersions = async () => {
@@ -168,6 +181,7 @@ export default function CreatePost() {
                     {type:"image", icon:<ImageIcon className="w-5 h-5" />, label:"صورة"},
                     {type:"video", icon:<Video className="w-5 h-5" />, label:"فيديو"},
                     {type:"link",  icon:<Link2 className="w-5 h-5"  />, label:"رابط"},
+                    {type:"ai_image", icon:<Sparkles className="w-5 h-5" />, label:"AI صورة"},
                   ].map(({type, icon, label}) => (
                     <button key={type} onClick={() => setMediaType(type)}
                       className="flex-1 flex flex-col items-center gap-1.5 py-3 border-2 border-dashed border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-colors text-gray-500 hover:text-purple-600">
@@ -215,6 +229,24 @@ export default function CreatePost() {
                       <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
                         className="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
                         placeholder="https://..." dir="ltr" />
+                    </div>
+                  )}
+                  {mediaType === "ai_image" && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">وصف الصورة المطلوبة</label>
+                      <div className="flex gap-2">
+                        <input value={aiImagePrompt} onChange={e => setAiImagePrompt(e.target.value)}
+                          className="flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                          placeholder="مثال: منتج عصري على خلفية بيضاء نظيفة" />
+                        <button onClick={generateAiImage} disabled={!aiImagePrompt.trim() || generatingImage}
+                          className="btn-primary px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center gap-1">
+                          {generatingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                          {generatingImage ? 'جاري...' : 'توليد'}
+                        </button>
+                      </div>
+                      {mediaPreview && (
+                        <img src={mediaPreview} className="mt-3 w-full max-h-48 object-cover rounded-xl" alt="AI generated" />
+                      )}
                     </div>
                   )}
                 </div>

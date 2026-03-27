@@ -19,6 +19,7 @@ export default function CommentsMonitor() {
   const [sendingReply, setSendingReply] = useState({});
   const [selectedPage, setSelectedPage] = useState(null);
   const [connectingFB, setConnectingFB] = useState(false);
+  const [autoReplying, setAutoReplying] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -102,6 +103,24 @@ export default function CommentsMonitor() {
     setSendingReply(prev => ({ ...prev, [comment.id]: false }));
   };
 
+  const autoReplyAll = async () => {
+    const pending = filteredComments.filter(c => c.status !== 'replied' && c.status !== 'ignored');
+    if (!pending.length) return;
+    setAutoReplying(true);
+    for (const comment of pending) {
+      const res = await base44.functions.invoke("generateReply", {
+        comment_id: comment.id,
+        fb_comment_id: comment.fb_comment_id,
+        comment_text: comment.content,
+        auto_post: false
+      });
+      if (res.data?.reply) {
+        setReplyTexts(prev => ({ ...prev, [comment.id]: res.data.reply }));
+      }
+    }
+    setAutoReplying(false);
+  };
+
   const toggleImportant = async (comment) => {
     const newStatus = comment.status === 'important' ? 'new' : 'important';
     await base44.entities.Comment.update(comment.id, { status: newStatus });
@@ -151,12 +170,21 @@ export default function CommentsMonitor() {
           <h1 className="text-2xl font-bold text-gray-800">مراقبة التعليقات</h1>
           <p className="text-gray-500 text-sm">راقب التعليقات وردّ عليها تلقائياً بالذكاء الاصطناعي</p>
         </div>
-        {importantCount > 0 && (
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 px-4 py-2 rounded-xl">
-            <Bell className="w-4 h-4 text-orange-500" />
-            <span className="text-sm font-bold text-orange-700">{importantCount} تعليق مهم</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {importantCount > 0 && (
+            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 px-4 py-2 rounded-xl">
+              <Bell className="w-4 h-4 text-orange-500" />
+              <span className="text-sm font-bold text-orange-700">{importantCount} تعليق مهم</span>
+            </div>
+          )}
+          {connection && filteredComments.some(c => c.status !== 'replied' && c.status !== 'ignored') && (
+            <button onClick={autoReplyAll} disabled={autoReplying}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 disabled:opacity-60">
+              {autoReplying ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+              {autoReplying ? 'جاري التوليد...' : 'رد تلقائي على الكل'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Facebook Connection */}
