@@ -8,7 +8,7 @@ export const base44 = createClient({
   appId,
   token,
   functionsVersion,
-  serverUrl: '',
+  serverUrl: 'https://base44.app', // ✅ مهم جدًا
   requiresAuth: false,
   appBaseUrl
 });
